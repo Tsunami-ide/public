@@ -1,6 +1,6 @@
 #Welcome to Tsunami’s public repo.
 ###We’re using GitHub and StackOverflow to engage directly with developers.
-Questions / Issue Tracking:
+####Questions / Issue Tracking:
 * Public Q&A [StackOverflow](http://stackoverflow.com/questions/tagged/tsunami)
 * Public enquiries to us [GitHub](https://github.com/Tsunami-ide/public/issues)
 * Private enquiries to us at [cases](cases@tsunami.fogbugz.com)
