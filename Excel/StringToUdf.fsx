@@ -28,7 +28,7 @@ let opt = new CompilerParameters(
                     @"C:\Program Files (x86)\Statfactory\FCell 1.0\log4net.dll";
                     @"C:\Program Files (x86)\Statfactory\FCell 1.0\FCell.ManagedXll.dll";
                     @"C:\Program Files (x86)\Statfactory\FCell 1.0\FCell.ManagedXll.Rtd.dll";
-                    @"C:\Program Files (x86)\Reference Assemblies\Microsoft\FSharp\3.0\Runtime\v4.0\FSharp.Core.dll"|], output)
+                    @"C:\Program Files (x86)\Statfactory\FCell 1.0\FSharp.Core.dll"|], output)
 
 let res = provider.CompileAssemblyFromSource(opt, code)
 
