@@ -1,41 +1,35 @@
-﻿#r "WindowsBase.dll"
+﻿#I @"C:\Program Files\Tsunami\"
+#r "WindowsBase.dll"
 #r "PresentationFramework.dll"
 #r "PresentationCore.dll"
 #r "System.Xaml.dll"
 #r "Telerik.Windows.Data.dll"
 #r "Telerik.Windows.Controls.dll"
 #r "Telerik.Windows.Controls.Charting.dll"
-#r "Telerik.Windows.Controls.RibbonView.dll"
-#r "Telerik.Windows.Controls.Docking.dll"
-#r "Telerik.Windows.Controls.Navigation.dll"
 #r "ActiproSoftware.SyntaxEditor.Wpf.dll"
 #r "ActiproSoftware.Shared.Wpf.dll"
-#r "ActiproSoftware.Text.Wpf.dll"
-#r "ActiproUtilities.dll"
+#r "ActiproSoftware.Docking.Wpf.dll"
+#r "ActiproSoftware.Ribbon.Wpf.dll"
+#r "ActiproSoftware.DataGrid.Contrib.Wpf.dll"
 #r "Tsunami.IDEDesktop.exe"
-#r "UIAutomationTypes.dll"
-
+ 
 open System
 open System.Windows
-open System.Windows.Data
-open System.Windows.Controls
-open System.Windows.Input
-open System.Windows.Media
-open System.Windows.Shapes
 open Telerik.Windows.Controls
 open Telerik.Windows.Controls.Charting
-
-let ui = System.Windows.Threading.DispatcherSynchronizationContext(Tsunami.IDE.UI.Instances.ApplicationMenu.Dispatcher)
+open Tsunami.IDE
+ 
+let ui = Threading.DispatcherSynchronizationContext UI.Instances.ApplicationMenu.Dispatcher
 
 let chart =
     async {
         do! Async.SwitchToContext ui
         let chart = RadChart()
-        Tsunami.IDE.UI.Instances.VisualizationPane.IsHidden <- false
-        Tsunami.IDE.UI.Instances.VisualizationPane.Content <-  chart
+        UI.Instances.VisualizationPane.Dock()
+        UI.Instances.VisualizationPane.Content <-  chart
         return chart
     } |> Async.RunSynchronously
-
+ 
 type Candle =
     struct
         val date : DateTime
@@ -52,7 +46,7 @@ type Candle =
                 ``close`` = c
             }
     end
-
+ 
 module Chart =
     let lines (xss:(string*float[])[]) = 
             async {
@@ -66,14 +60,13 @@ module Chart =
                         lineSeries.Add(DataPoint(x))
                     chart.DefaultView.ChartArea.DataSeries.Add(lineSeries)
             } |> Async.RunSynchronously
-
+ 
     let clear() = 
             async {
                 do! Async.SwitchToContext ui
                 chart.DefaultView.ChartArea.DataSeries.Clear()
             } |> Async.RunSynchronously
-
-
+ 
     let candleStick (name:string, xs:Candle[]) = 
             async {
                 do! Async.SwitchToContext ui
@@ -81,21 +74,20 @@ module Chart =
                 chart.DefaultView.ChartArea.AxisX.LayoutMode <- AxisLayoutMode.Inside
                 chart.DefaultView.ChartArea.AxisX.LabelRotationAngle <- 45.
                 chart.DefaultView.ChartArea.AxisX.DefaultLabelFormat <- "dd-MMM"
-
+ 
                 let candleStickSeries = DataSeries(LegendLabel = name, Definition = new CandleStickSeriesDefinition())
                 candleStickSeries.AddRange(xs |> Array.map (fun x -> DataPoint(High = x.high, Low = x.low, Open = x.``open``, Close = x.close, XValue = x.date.ToOADate())))
                 chart.DefaultView.ChartArea.DataSeries.Add(candleStickSeries) 
             } |> Async.RunSynchronously
-        
-
+ 
 let random = new System.Random()
 let randomWalk() = [|0..20|] |> Array.scan (fun state _ -> state + random.NextDouble() * 2. - 1.) 0.
 let randomWalks = [| for i in 0..5 -> ("Random Walk " + string i, randomWalk()) |]
-
+ 
 Chart.lines randomWalks
-
+ 
 Chart.clear()
-
+ 
 [|
     let now = DateTime.Now
     for i in 0..20 ->

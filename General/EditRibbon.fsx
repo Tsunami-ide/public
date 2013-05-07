@@ -3,30 +3,28 @@
 #r "PresentationFramework.dll"
 #r "PresentationCore.dll"
 #r "Telerik.Windows.Controls.dll"
-#r "Telerik.Windows.Controls.Navigation.dll"
-#r "Telerik.Windows.Controls.Docking.dll" 
-#r "Telerik.Windows.Controls.RibbonView.dll" 
-#r "ActiproSoftware.SyntaxEditor.Wpf.dll"
-#r "System.Xaml.dll"
 #r "ActiproSoftware.Shared.Wpf.dll"
-#r "ActiproSoftware.Text.Wpf.dll"
-#r "ActiproUtilities.dll"
+#r "ActiproSoftware.SyntaxEditor.Wpf.dll"
+#r "ActiproSoftware.Docking.Wpf.dll"
+#r "ActiproSoftware.Ribbon.Wpf.dll"
+#r "ActiproSoftware.DataGrid.Contrib.Wpf.dll"
+#r "System.Xaml.dll"
 
-open Tsunami.IDE
-open Tsunami.Utilities
-open System
 open System.Windows
 open System.Windows.Controls
-open ActiproSoftware.Windows.Controls
-open Telerik.Windows.Controls
-open Telerik.Windows.Controls.RibbonView
+open ActiproSoftware.Windows.Controls.Ribbon
+open Tsunami.IDE
 
-let ui = Threading.DispatcherSynchronizationContext(Tsunami.IDE.UI.Instances.ApplicationMenu.Dispatcher)
+let ui = Threading.DispatcherSynchronizationContext(UI.Instances.ApplicationMenu.Dispatcher)
 
 async {
     do! Async.SwitchToContext ui
-    let button = RadRibbonButton(Text = "Run", Size = ButtonSize.Large) 
+    let button = Button(Width = 70.)
+    button.Content <- "Run" 
     button.Click.Add(fun _ -> MessageBox.Show("Hello world") |> ignore)
-    let tab = button |> addItem (RadRibbonGroup(Header = "Group")) |> addItem (RadRibbonTab(Header = "Tab"))    
-    Tsunami.IDE.UI.Instances.RibbonView.Items.Add(tab) |> ignore
+    let tab = Controls.Tab(Label = "Tab")
+    let group = Controls.Group(Label = "Group")
+    group.ItemsSource <- [|button|]
+    tab.Items.Add group
+    UI.Instances.RibbonView.Tabs.Add tab
 } |> Async.RunSynchronously
