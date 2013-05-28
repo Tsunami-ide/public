@@ -1,0 +1,461 @@
+﻿<!DOCTYPE>
+<html>
+    <head>
+        <title>WebEdit</title>
+		<script src="http://code.jquery.com/jquery-latest.js" type="text/javascript" ></script>
+		    <style type="text/css">
+
+                #ide {
+                    position: relative;
+                    height:400px;
+                    width:300px;
+		        }
+
+                #pad {
+                    height:400px;
+                    width:300px;
+		        }
+
+		        #textDiv {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+		        }
+
+                #dropDownDiv {
+                    position: absolute;
+                    -webkit-user-select: none;
+                    -khtml-user-select: none;
+                    -moz-user-select: none;
+                    -o-user-select: none;
+                    user-select: none;
+                    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+                    font-size:12px;
+		        }
+
+                #hoverText {
+                    position: absolute;
+                    top: 30px;
+                    left: 30px;
+                    min-height:50px;
+                    min-width:50px;
+                    background-color:lightgray;
+                    stroke-width:2px;
+                    stroke:black;
+                    visibility:hidden;
+                    -webkit-user-select: none;
+                    -khtml-user-select: none;
+                    -moz-user-select: none;
+                    -o-user-select: none;
+                    user-select: none;
+                    pointer-events:none;
+                    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+                    font-size:12px;
+		        }
+
+		        .helpText {
+                    background-color:lightgray;
+                    stroke-width:2px;
+                    stroke:black;
+                    
+		        }
+		        .helpText p {
+                    margin:0px;
+                    padding:0px;
+                    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+                    font-size:12px;
+                    pointer-events:none;
+		        }
+
+		        .underlineError {
+                    position:relative;
+		            border-bottom-style:dotted;
+                    border-width:1px;
+                    border-color:red;
+                }
+
+                .underlineWarning {
+		            position: relative;
+		            border-bottom-style:dashed;
+                    border-width:2px;
+                    border-color:blue;
+                }
+
+		        textarea {
+                    white-space:nowrap;
+                    overflow:scroll;   
+                    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+                    font-size:12px;
+		        }
+
+                #Test
+                {
+                    position: absolute;
+                    visibility: hidden;
+                    height: auto;
+                    width: auto;
+                    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+                    font-size:12px;
+                }
+		        #myCanvas {
+		            pointer-events: none;
+		        }
+    </style>
+		<script type="text/javascript">
+		    var model = {
+		        charHeight: 14,
+		        charWidth: 7,
+		        textAreaHeight: 0, // TODO
+		        textAreaWidth: 0, // TODO
+		        scrollHeight: 0,
+		        scrollWidth: 0,
+		        leftPadding: 5,
+		        topPadding: 3,
+		        cursorPosition: 0,
+		        cursorColumn: 0,
+		        cursorRow: 0,
+		        // (row,startColumn,endColumn)
+		        errorLines: [],
+		        // (row,startColumn,endColumn)
+		        warningLines: [],
+		        text: "",
+		        // string[]
+		        lines: [],
+		        host: "ws://api.tsunami.io:8080/ws/comiler", // Websocket
+		        socket: null,
+		        send: null, // send function
+		        connect: null, // connect function
+		        lastMsg: null, // last message
+		        connected: false,
+		        decls: []
+		    }
+
+		    $(document).ready(function () {
+
+
+
+
+		        $.fn.getCursorPosition = function() {
+		            var el = $(this).get(0);
+		            var pos = 0;
+		            if('selectionStart' in el) {
+		                pos = el.selectionStart;
+		            } else if('selection' in document) {
+		                el.focus();
+		                var Sel = document.selection.createRange();
+		                var SelLength = document.selection.createRange().text.length;
+		                Sel.moveStart('character', -el.value.length);
+		                pos = Sel.text.length - SelLength;
+		            }
+		            return pos;
+		        }
+
+		        $.fn.quickChange = function (handler) {
+		            return this.each(function () {
+		                var self = this;
+		                self.qcindex = self.selectedIndex;
+		                var interval;
+		                function handleChange() {
+		                    if (self.selectedIndex != self.qcindex) {
+		                        self.qcindex = self.selectedIndex;
+		                        handler.apply(self);
+		                    }
+		                }
+		                $(self).focus(function () {
+		                    interval = setInterval(handleChange, 100);
+		                }).blur(function () { window.clearInterval(interval); })
+                        .change(handleChange); //also wire the change event in case the interval technique isn't supported (chrome on android)
+		            });
+		        };
+
+		        var pad = $('#pad')
+		        var keyDownOutput = $('#keyDownOutput') 
+		        var output = $('#output')
+
+		        
+		        var title = $('#title')
+		        var layoutButton = $('#layoutButton')
+		        var codeToggle = $('#codeToggle')
+		        var typeCheck = $('#typeCheck')
+		        var code = true;
+		        var codeCompletion = $('#codeCompletion')
+
+		        var dropDownDiv = $('#dropDownDiv')
+		        var selectBox = $('#selectBox')
+		        var helpTextDiv = $('#helpTextDiv')
+
+		        var errorList = $('#errorList')
+		        var hoverTextDiv = $('#hoverTextDiv')
+		        var declListDiv = $('#declListDiv')
+
+		        
+
+		        codeToggle.click(function () {
+		            code = !code
+		            if (code) {
+		                codeCompletion.show();
+		            } else {
+		                codeCompletion.hide();
+		            }
+		        });
+		        
+
+		        var myCanvas = document.getElementById("myCanvas")
+		        var ctx = myCanvas.getContext("2d");
+
+		        var clear = function () {
+		            // Store the current transformation matrix
+		            ctx.save();
+		            // Use the identity matrix while clearing the canvas
+		            ctx.setTransform(1, 0, 0, 1, 0, 0);
+		            ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
+		            // Restore the transform
+		            ctx.restore();
+		        }
+
+
+		        model.text = pad.val().replace(/\r\n/g, "\n")
+
+		        function connect() {
+		            try {
+		                model.socket = new WebSocket(model.host);
+		                model.socket.onopen = function () { model.connected = true; model.send({ tag: "TypeCheckSource", Item: model.text }) }
+		                model.socket.onclose = function () { output.text("Socket closed refresh to reconnect") }
+		                model.socket.onmessage = function (msg) {
+		                    message(msg.data);
+		                }
+		            } catch (exception) {
+		                alert(exception)
+		            }
+		        }
+
+		        typeCheck.click(function () { model.send({ tag: "TypeCheckSource", Item: model.text })})
+
+		        connect()
+
+		        function send(msg) {
+		            if (model.connected) {
+		                try {
+		                    model.socket.send(JSON.stringify(msg));
+		                } catch (exception) {
+		                    alert(exception);
+		                }
+		            }
+		        }
+
+                model.send = send
+                dropDownDiv.hide()
+                function message(msg) {
+                    m = msg;
+		            var m = JSON.parse(msg)
+		            model.lastMsg = m;
+		            switch (m.tag) {
+		                case "HoverText":
+		                    hoverTextDiv.text(m.Item)
+		                    break;
+
+		                case "CodeCompletion":
+		                    dropDownDiv.show()
+		                    var ds = m.Item
+		                    var decls = []
+		                    for (var key in ds) { decls.push([key, ds[key]]) }
+
+		                    model.decls = decls
+		                    selectBox.empty()
+
+		                    for (var i in decls) {
+		                        var decl = decls[i]
+		                        selectBox.append($("<option />", { value:i, html: decl[0]}))
+		                    }
+		                    break;
+
+		                case "Errors":
+		                    var errors = m.Item
+		                    errorList.empty()
+
+                            // Error List
+		                    var ul = $("<ul />")
+
+		                    var xs = $.unique($.map(errors, function(x,i) {return x.errorType + " " + x.message}))
+                            
+		                    for (var i in xs) {
+                                var er = xs[i]
+		                        ul.append($("<li />", { html: er }))
+		                    }
+
+		                    errorList.append(ul)
+                            
+		                    model.errorLines = errors.filter(function (x) { return x.errorType == "Error" }).map(function (x) { return x.segments[0] })
+		                    model.warningLines = errors.filter(function (x) { return x.errorType == "Warning" }).map(function (x) { return x.segments[0] })
+		                    
+                            redraw()
+		                    break;
+
+		                case "Echo":
+		                    //todo
+		                    break;
+
+		                case "Broadcast":
+		                    //todo
+		                    break;
+
+		            }
+		            
+		        }
+
+                y = model
+
+		        // xs is [(row,startColumn,endColumn)]
+		        var drawUnderlines = function (xs) {
+		            ctx.beginPath();
+		            var leftOffset = model.leftPadding - model.scrollWidth
+		            var topOffset = model.topPadding - model.scrollHeight   
+		            for (var i = 0; i < xs.length; i++) {
+		                ctx.moveTo(leftOffset + model.charWidth * xs[i][1], topOffset + model.charHeight * (xs[i][0] + 1))
+		                ctx.lineTo(leftOffset + model.charWidth * xs[i][2], topOffset + model.charHeight * (xs[i][0] + 1))
+		                
+		            }
+		            ctx.stroke();
+		            ctx.closePath();
+		        }
+
+		        var drawErrorLines = function () {
+		            ctx.strokeStyle = "rgb(255,0,0)";
+		            drawUnderlines(model.errorLines);
+		        };
+
+		        var drawWarningLines = function () {
+		            ctx.strokeStyle = "rgb(0,255,0)";
+		            drawUnderlines(model.warningLines);
+		        };
+
+		        var redraw = function () {
+		            ctx.canvas.width = pad.width();
+		            ctx.canvas.height = pad.height();
+		            clear()
+		            drawWarningLines()
+                    drawErrorLines()
+                    var top = model.topPadding - model.scrollHeight + model.charHeight * (model.cursorRow + 1)
+                    var left = model.leftPadding - model.scrollWidth + model.charWidth * model.cursorColumn
+                    //output.text("height " + top + " left " + left)
+                    dropDownDiv.css("top", top).css("left", left)
+		        };
+		        
+		        redraw()
+                
+		        pad.scroll(function (event) {
+		            // set scroll
+		            model.scrollHeight = pad.scrollTop()
+		            model.scrollWidth = pad.scrollLeft()
+		            
+		            redraw()
+		        });
+
+		        var updateCursor = function () {
+		            model.cursorPosition = pad.getCursorPosition();
+		            model.cursorRow = (model.text.substring(0, model.cursorPosition).match(/\n/g) || []).length + 1
+                    // todo get characters befor row
+		            if (model.cursorRow == 0) {
+		                model.cursorColumn = model.cursorPosition;
+		            } else {
+		                var x = 0
+		                for (var i = 0; i < model.cursorRow - 1; i++) {
+		                    x += model.lines[i].length + 1
+		                    }
+		                model.cursorColumn = model.cursorPosition - x + 1
+		            }
+		            if (model.connected) {
+		               // model.send({ tag: "GetHoverText", Item: model.cursorPosition })
+		            }
+
+
+		           
+		            redraw()
+		        };
+
+
+		        pad.keyup(function (event) {
+		            model.text = pad.val().replace(/[\v\f \u00a0\u2000-\u200b\u2028-\u2029\u3000]/g, " ").replace(/\r\n/g, "\n").replace("&nbsp;", " ")
+		            model.cursorPosition = pad.getCursorPosition();
+		            // send text to server
+		            if (model.connected) {
+		                //model.send({ tag: "TypeCheckSource", Item: model.text })
+		                if (event.keyCode == 190) {
+		                    model.send({ tag: "TypeCheckSource", Item: model.text })
+		                    model.send({ tag: "GetCodeCompletion", Item: model.cursorPosition })
+		                }
+		            }
+		            model.lines = model.text.split("\n")
+		            dropDownDiv.hide();
+		            updateCursor();
+		            
+		        });
+
+		        pad.mouseup(function (event) {updateCursor();});
+		        pad.bind("touchend", function (event) {setTimeout(function () { updateCursor(); }, 20); }); //touchstart, touchmove, and touchend
+
+		        selectBox.quickChange(function () {
+		            var i = selectBox.val()
+		            var decl = model.decls[i]
+		            helpTextDiv.empty()
+		            $("<p><b id='title'>" + decl[0] + "</b><br />" + decl[1] + "</p>").appendTo(helpTextDiv)
+		        });
+		        
+		        var test = document.getElementById("Test");
+		        model.charHeight = test.clientHeight - 0.;
+		        model.charWidth = test.clientWidth / 100;
+		        
+
+		        layoutButton.click(function () {
+		            
+		        });
+
+
+		    })
+
+			</script>
+    </head>
+    <body >
+        
+        <p id="keyDownOutput"></p>
+        <p id="output"></p>
+        <button id="layoutButton" hidden="hidden">layout</button>
+        <span>
+            <button id="codeToggle" style="visibility:collapse">toggle codecompletion</button>
+            <button id="typeCheck">Type Check</button>
+        </span>
+        <div id="ide"  >
+            <div id="textDiv">
+                <textarea wrap="off" id="pad" autocapitalize="off" spellcheck="false" autocorrect="off" ></textarea>
+            </div>
+            <div id="codeCompletion">                
+                <div><canvas style="position:relative" id="myCanvas" /></div>
+                <div id="hoverText">
+                    <p><b>Foo</b><br />
+                        param 1 does something<br />
+                        param 1 does something<br />
+                        param 1 does something<br />
+                    </p>
+                </div>
+                <div id="dropDownDiv">
+                    <select id="selectBox">
+                    </select>
+                    <div id="helpTextDiv" class="helpText">
+
+                    </div>
+                </div>
+                
+                
+            </div>
+            <div id="Test">0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789</div>
+        </div>
+        <div style="position:relative">
+            <div id="declListDiv">
+            </div>
+            <div id="hoverTextDiv">
+            </div>
+            <h3>Errors</h3>
+            <div id="errorList"></div>
+        </div>
+    </body>
+</html>
