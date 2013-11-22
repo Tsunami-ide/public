@@ -38,6 +38,8 @@ module FileHelpers =
     
     open Tsunami.IDE
     open Tsunami.IDE.TypeProvider
+    open Tsunami.IDE.Model
+    open Tsunami.IDE.Projects
     
     [<Literal>]
     let root = __SOURCE_DIRECTORY__
@@ -285,6 +287,8 @@ module PhoneGapProject =
     open Tsunami.IDE.TypeProvider
     open System.IO
     open Tsunami
+    open Tsunami.IDE.Projects
+    open Tsunami.IDE.Model
     
     [<Literal>]
     let root = __SOURCE_DIRECTORY__
@@ -336,6 +340,8 @@ module PhoneGapProject =
 module FantomasProject =
 
     open Tsunami.IDE
+    open Tsunami.IDE.Projects
+    open Tsunami.IDE.Model
     
     type Root = Files.Plugins.Fantomas
     
